@@ -1,243 +1,223 @@
+# GateKeeper - Smart Car Park System
 
-# Smart Car Park System
+A comprehensive smart car park system with license plate recognition using YOLOv8 and PaddleOCR, automated barrier control, and web-based management interface.
 
-A comprehensive smart car park system built using STM32 microcontroller and Raspberry Pi, with license plate recognition using YOLOv8 and PaddleOCR, and automated barrier control.
+## 🏗️ Project Structure
 
-## Project Overview
+```
+GateKeeper/
+├── src/                          # Main application code
+│   ├── api/                      # FastAPI application
+│   │   └── main.py              # License plate recognition API
+│   ├── web/                      # Flask web application
+│   │   ├── app.py               # Web interface
+│   │   ├── templates/           # HTML templates
+│   │   └── static/              # CSS, JS, images
+│   ├── hardware/                 # Hardware integration
+│   │   └── smart_car_park.py    # Raspberry Pi integration
+│   └── core/                     # Core business logic
+│       ├── detector.py          # YOLOv8 license plate detection
+│       ├── ocr_reader.py        # PaddleOCR text recognition
+│       └── parser.py            # Plate text parsing
+├── firmware/                     # STM32 firmware
+│   └── stm32_main.c             # STM32 control code
+├── models/                       # ML models
+│   └── best.pt                  # YOLOv8 trained model
+├── data/                         # Data storage
+│   ├── databases/               # SQLite databases
+│   └── logs/                    # Application logs
+├── tests/                        # Test suite
+│   └── test_images/            # Test images
+├── config/                       # Configuration
+│   └── settings.py             # Centralized configuration
+├── scripts/                      # Utility scripts
+│   └── setup_db.py             # Database setup
+├── docs/                         # Documentation
+│   └── README.md               # Detailed documentation
+├── requirements.txt             # Python dependencies
+├── Dockerfile                   # Docker container definition
+└── docker-compose.yml          # Multi-container setup
+```
 
-The Smart Car Park System automates vehicle entry/exit management using an STM32 microcontroller and a Raspberry Pi, communicating via UART. It includes:
+## 🚀 Quick Start
 
-- LM393 sensor for vehicle detection
-- SG90 servo for barrier control
-- SSD1306 OLED display for user messages
-- Webcam for license plate recognition using YOLOv8 and PaddleOCR
-- SQLite database for registered plate storage
-- Web interface for managing license plates
+### Prerequisites
 
-## Hardware Requirements
+- Python 3.9+
+- Docker and Docker Compose (optional)
+- Raspberry Pi 4/5 (for hardware integration)
+- STM32 microcontroller (for barrier control)
+- USB Webcam
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd GateKeeper
+   ```
+
+2. **Install Python dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Setup database**
+   ```bash
+   python scripts/setup_db.py
+   ```
+
+4. **Run the API server**
+   ```bash
+   # From project root
+   python -m src.api.main
+   ```
+
+5. **Run the web interface (in separate terminal)**
+   ```bash
+   # From project root
+   python -m src.web.app
+   ```
+
+### Using Docker
+
+1. **Build and run with Docker Compose**
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Access the services**
+   - API: http://localhost:8000
+   - Web Interface: http://localhost:5000
+
+## 📖 Usage
+
+### Web Interface
+
+1. Navigate to `http://localhost:5000`
+2. Login with credentials (default: admin/admin)
+3. Add authorized license plates
+4. View access logs and system status
+
+### API
+
+**Recognize License Plate**
+```bash
+curl -X POST "http://localhost:8000/lpr" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@/path/to/image.jpg"
+```
+
+Response:
+```json
+{
+  "plate_text": "29A12345"
+}
+```
+
+### Hardware Integration
+
+For Raspberry Pi with STM32:
+
+```bash
+# From project root
+python -m src.hardware.smart_car_park
+```
+
+## ⚙️ Configuration
+
+Edit `config/settings.py` or use environment variables:
+
+```bash
+# API Configuration
+export API_HOST=0.0.0.0
+export API_PORT=8000
+
+# Web Configuration
+export WEB_HOST=0.0.0.0
+export WEB_PORT=5000
+export WEB_SECRET_KEY=your-secret-key
+
+# Hardware Configuration
+export UART_PORT=/dev/ttyAMA0
+export UART_BAUDRATE=115200
+export CAMERA_ID=0
+
+# Detection Configuration
+export DETECTION_CONFIDENCE=0.3
+```
+
+## 🔧 Development
+
+### Project Organization
+
+- **src/api/** - FastAPI endpoints for license plate recognition
+- **src/web/** - Flask web interface for management
+- **src/hardware/** - Raspberry Pi integration with STM32
+- **src/core/** - Core detection and OCR logic
+- **config/** - Centralized configuration
+- **scripts/** - Utility scripts for setup and maintenance
+
+### Adding New Features
+
+1. Core logic goes in `src/core/`
+2. API endpoints in `src/api/`
+3. Web pages in `src/web/templates/`
+4. Configuration in `config/settings.py`
+
+### Running Tests
+
+```bash
+# Run all tests
+python -m pytest tests/
+
+# With test images
+python -m pytest tests/ -v
+```
+
+## 🔐 Security Notes
+
+⚠️ **Important**: This is a development setup. For production:
+
+1. Change default admin credentials
+2. Set strong `WEB_SECRET_KEY`
+3. Use HTTPS for web interface
+4. Implement proper authentication
+5. Secure database with proper permissions
+6. Use environment variables for sensitive data
+
+## 📝 Hardware Requirements
 
 ### Components
 - **STM32F4 Microcontroller**
-- **Raspberry Pi 4**
-- **LM393 Comparator Sensor**
-- **SG90 Servo Motor**
-- **0.96-inch SSD1306 OLED Display**
-- **USB Webcam**
-- **Power supplies (5V, 3.3V)**
-- **Jumper wires**
+- **Raspberry Pi 4/5**
+- **LM393 IR Sensor** (car detection)
+- **SG90 Servo Motor** (barrier control)
+- **SSD1306 OLED Display** (status display)
+- **USB Webcam** (license plate capture)
 
-### Wiring Diagram
+### Wiring
 
-#### STM32 Connections
-- **UART Communication**:
-  - PA2 (TX) → Raspberry Pi RX (GPIO15)
-  - PA3 (RX) → Raspberry Pi TX (GPIO14)
-  - Common GND
+See `docs/README.md` for detailed wiring diagrams and hardware setup instructions.
 
-- **LM393 Sensor**:
-  - VCC → 3.3V or 5V
-  - GND → GND
-  - Digital Output → PA0 (with pull-down resistor)
+## 🤝 Contributing
 
-- **SG90 Servo**:
-  - VCC → 5V external supply
-  - GND → GND
-  - Signal → PB6 (TIM3 Channel 1)
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-- **SSD1306 OLED**:
-  - VCC → 3.3V
-  - GND → GND
-  - SCL → PB8 (I2C1 SCL)
-  - SDA → PB9 (I2C1 SDA)
+## 📄 License
 
-#### Raspberry Pi Connections
-- **UART**:
-  - GPIO14 (TX) → STM32 PA3 (RX)
-  - GPIO15 (RX) → STM32 PA2 (TX)
-  - GND → Common GND
+This project is for educational purposes. Use in production requires proper licensing and security measures.
 
-- **Webcam**:
-  - Connected to USB port
+## 🙏 Acknowledgements
 
-## Software Components
+- YOLOv8 by Ultralytics
+- PaddleOCR by PaddlePaddle
+- Flask web framework
+- FastAPI framework
 
-### STM32 Firmware (`main.c`)
-- Reads vehicle sensor data from LM393
-- Controls servo for barrier movement
-- Displays status messages on OLED
-- Communicates with Raspberry Pi via binary protocol
+## 📞 Support
 
-### Raspberry Pi Software
-- **`smart_car_park.py`**: Main script handling:
-  - UART communication with STM32
-  - License plate detection using YOLOv8 for object detection and PaddleOCR for text recognition
-  - SQLite database queries
-  - Capacity tracking
-
-- **`app.py`**: Flask web application for:
-  - Adding/removing license plates
-  - Viewing activity logs
-  - Web-based management
-
-### Communication Protocol
-
-Binary packet format:
-```
-| Start Byte (0xAA) | Length (1 byte) | Event ID (1 byte) | Data (n bytes) | CRC8 (1 byte) |
-```
-
-#### Event IDs
-| Event ID | Direction | Event Name | Data Format |
-|----------|-----------|------------|-------------|
-| `0x01` | Pi → STM32 | Display | Null-terminated string (max 16 chars) |
-| `0x02` | Pi → STM32 | Servo | 1-byte angle (0-180) |
-| `0x03` | STM32 → Pi | Car Detect | 1-byte boolean (1 = detected, 0 = not detected) |
-| `0x04` | Pi → STM32 | LP Status | 1-byte status (0 = unregistered, 1 = registered) |
-| `0x05` | Pi → STM32 | Park Full Status | 1-byte boolean (1 = full, 0 = not full) |
-
-## Setup Instructions
-
-### STM32 Setup
-1. **Hardware Setup**:
-   - Configure STM32 with STM32CubeMX to set up:
-     - USART2 (PA2/PA3) at 115200 baud
-     - GPIO PA0 as input with pull-down
-     - TIM3 for PWM on PB6 at 50Hz
-     - I2C1 on PB8/PB9
-   - Connect all components according to wiring diagram
-
-2. **Firmware Loading**:
-   - Compile `main.c` with necessary libraries (HAL, u8g2)
-   - Flash to STM32 using ST-Link or other programmer
-
-### Raspberry Pi Setup
-1. **System Configuration**:
-   ```bash
-   # Enable UART
-   sudo nano /boot/config.txt
-   # Add these lines:
-   enable_uart=1
-   dtoverlay=disable-bt
-   ```
-
-2. **Install Dependencies**:
-   ```bash
-   sudo apt update
-   sudo apt install -y python3-pip libopencv-dev python3-opencv
-   pip3 install pyserial ultralytics paddleocr paddlepaddle flask
-   ```
-
-3. **Setup Scripts**:
-   ```bash
-   # Clone the repository (if applicable)
-   git clone https://github.com/yourusername/smart-car-park.git
-   cd smart-car-park
-   
-   # Run the main program
-   python3 smart_car_park.py
-   
-   # Run the web interface (in a separate terminal)
-   python3 app.py
-   ```
-
-4. **Access Web Interface**:
-   - Open a browser and navigate to: `http://<raspberry_pi_ip>:5000`
-   - Login with username: `admin`, password: `admin`
-
-## Usage Examples
-
-### Scenario 1: Registered Car Entry
-1. Car approaches and is detected by LM393 sensor
-2. STM32 sends detection packet to Pi
-3. Pi captures plate image, uses YOLOv8 to detect the license plate, and PaddleOCR to recognize the text
-4. Pi checks database and confirms plate is registered
-5. Pi sends commands to STM32 to display "Welcome" and open barrier
-6. Car passes through, sensor detects absence, barrier closes
-
-### Scenario 2: Unregistered Car
-1. Car is detected by sensor
-2. STM32 sends detection packet to Pi
-3. Pi captures image, processes it with YOLOv8 and PaddleOCR to extract plate number
-4. Pi checks database and finds plate is not registered
-5. Pi sends command to STM32 to display "Invalid Plate"
-6. Barrier remains closed
-
-### Adding a New License Plate
-1. Access the web interface at `http://<raspberry_pi_ip>:5000`
-2. Login with admin credentials
-3. Navigate to "License Plates" and click "Add New Plate"
-4. Enter the license plate number (e.g., "ABC123")
-5. Submit the form to add the plate to the database
-
-## Cybersecurity Considerations
-
-### Risks
-- **Data Interception**: UART communication can be intercepted physically
-- **Buffer Overflows**: Improper packet handling could lead to memory corruption
-- **Unauthorized Access**: Website access could allow unauthorized changes to database
-- **Network Exposure**: If Pi is exposed to untrusted networks
-
-### Precautions
-- **CRC8 Validation**: All packets include CRC8 for data integrity
-- **Input Validation**: All user inputs and packet data validated
-- **Authentication**: Web interface protected by login
-- **Network Security**: Use VPN/proxy for Pi when connected to networks
-- **Physical Security**: Secure hardware in controlled environment
-
-## Testing
-
-### Test Procedures
-1. **Sensor Testing**:
-   - Simulate car detection by manually toggling PA0 pin high/low
-   - Verify UART packets are transmitted properly
-
-2. **License Plate Recognition**:
-   - Use sample plates to test webcam recognition with YOLOv8 and PaddleOCR
-   - Test various lighting conditions and angles
-
-3. **Web Interface Testing**:
-   - Add and remove test plates via web interface
-   - Check database integrity
-
-4. **Integration Testing**:
-   - End-to-end testing with sample plates
-
-### Debug Tips
-- Use logic analyzer to monitor UART communication
-- Check webcam permissions (`ls -la /dev/video*`)
-- Verify I2C address for OLED (typically 0x3C or 0x3D)
-- Monitor logs with `tail -f car_park.log` and `tail -f web_app.log`
-
-## Example Communication Log
-
-### Registered Car
-```
-STM32 → Pi: [AA 02 03 01 DB] (Car Detected)
-Pi → STM32: [AA 02 04 01 D8] (LP Status: Registered)
-Pi → STM32: [AA 02 02 5A A0] (Servo: 90°)
-Pi → STM32: [AA 08 01 57 65 6C 63 6F 6D 65 00 B7] (Display: "Welcome")
-STM32 UART: "OK" (x3)
-Pi Console: "Car Detected\nOK"
-```
-
-### Unregistered Car
-```
-STM32 → Pi: [AA 02 03 01 DB] (Car Detected)
-Pi → STM32: [AA 02 04 00 D9] (LP Status: Unregistered)
-Pi → STM32: [AA 0E 01 49 6E 76 61 6C 69 64 20 50 6C 61 74 65 00 C2] (Display: "Invalid Plate")
-STM32 UART: "OK" (x2)
-Pi Console: "Car Detected\nOK"
-```
-
-## License
-
-This project is for educational purposes only. Use in real environments requires additional security measures and owner consent for all activities.
-
-## Contributors
-
-- freebee - Project Developer
-
-## Acknowledgements
-
-- Reference materials and prior work from educational resources
-- Open source libraries: YOLOv8, PaddleOCR, Flask, u8g2
+For issues and questions, please open an issue on GitHub.

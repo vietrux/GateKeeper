@@ -1,3 +1,26 @@
 __pycache__/
 .venv/
 *.log
+*.pyc
+.env
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Data files
+data/databases/*.db
+data/logs/*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model weights (optional - comment out if you want to track them)
+# models/*.pt

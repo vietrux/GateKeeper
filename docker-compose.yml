@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gatekeeper-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data
+    environment:
+      - LOG_LEVEL=INFO
+      - API_PORT=8000
+    restart: unless-stopped
+    command: ["python", "-m", "src.api.main"]
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gatekeeper-web
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./src/web/templates:/app/src/web/templates:ro
+      - ./src/web/static:/app/src/web/static:ro
+    environment:
+      - LOG_LEVEL=INFO
+      - WEB_PORT=5000
+      - WEB_SECRET_KEY=change-this-in-production
+    restart: unless-stopped
+    command: ["python", "-m", "src.web.app"]
+    depends_on:
+      - api
+
+volumes:
+  data:
+    driver: local
