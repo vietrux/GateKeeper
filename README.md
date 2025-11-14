@@ -32,6 +32,9 @@ GateKeeper functions as an automated access-control system:
 
 ## How it works
 
+<img width="1920" height="1080" alt="fig" src="https://github.com/user-attachments/assets/77cf1ea5-f3d4-489f-bf9d-71b392204a40" />
+
+
 ```
 Vehicle arrives → Sensor detects → ESP32 calls API
                                     ↓
