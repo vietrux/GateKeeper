@@ -5,7 +5,7 @@ python-multipart
 numpy
 opencv-python
 paddlepaddle
-paddleocr
+paddleocr==2.10.0
 ultralytics
 torch
 torchvision

@@ -1,185 +1,213 @@
-# GateKeeper — Smart Car Park Automation
+# GateKeeper
 
-GateKeeper blends edge computing, computer vision, and embedded control to manage vehicle access automatically. A Raspberry Pi orchestrates license-plate capture and recognition, an STM32 microcontroller drives the physical barrier, and operators manage authorized vehicles through a web dashboard and REST API.
+An intelligent gate system that automatically recognizes license plates, combining a FastAPI image-processing service with an ESP32 controller.
 
-## Key Capabilities
+## Introduction
 
-- **Real-time detection and OCR** powered by a YOLOv8 plate detector and PaddleOCR reader with CPU-friendly defaults.@src/core/detector.py#1-75@src/core/ocr_reader.py#1-119
-- **Edge-to-cloud workflow** where the Raspberry Pi listens for STM32 events, captures frames, and decides barrier actions over UART.@src/hardware/smart_car_park.py#1-389
-- **Operator tooling** including a Flask dashboard for managing plate records and viewing recent movements.@src/web/app.py#55-247
-- **Self-contained recognition API** exposing camera-triggered and file-upload endpoints for integration or testing.@src/api/main.py#1-140
+GateKeeper functions as an automated access-control system:
 
-## System Architecture
+* **Central processing (FastAPI)**: Captures images from a camera, detects license plates using YOLOv8 and PaddleOCR, then decides whether to allow or deny access.
+* **Device control (ESP32)**: Uses an LM393 sensor to detect vehicles, calls the API for verification, controls a servo to open the gate, and displays results on an OLED screen.
 
-| Layer | Responsibility | Primary Artifacts |
-| --- | --- | --- |
-| Embedded control | Detect vehicles, position barrier, display status | `firmware/stm32_main.c`, UART protocol (see `docs/README.md`) |
-| Edge orchestration | Capture frames, run ML pipeline, query SQLite, answer STM32 | `src/hardware/smart_car_park.py`@src/hardware/smart_car_park.py#62-389 |
-| Vision core | YOLOv8 detection, PaddleOCR recognition, text parsing utilities | `src/core/detector.py`, `src/core/ocr_reader.py`, `src/core/parser.py` |
-| Services | FastAPI recognition API, Flask management UI | `src/api/main.py`, `src/web/app.py` |
-| Data & config | Models, SQLite DB, logging, settings | `models/`, `data/`, `config/settings.py`@config/settings.py#11-49 |
+## Key Features
 
-## Repository Layout
+### Intelligent image processing
+
+* Detect license plates using YOLOv8
+* Recognize characters using PaddleOCR, optimized for Vietnamese plates
+* Processes images directly from the camera, no manual interaction needed
+
+### Fully automated operation
+
+* LM393 sensor automatically detects incoming vehicles
+* Calls API and processes the returned results
+* Controls the servo to open/close the gate
+* Displays real-time status on the OLED screen
+
+### Easy deployment
+
+* Fully containerized with Docker
+* Flexible configuration via environment variables
+* Supports multiple camera types
+
+## How it works
+
+```
+Vehicle arrives → Sensor detects → ESP32 calls API
+                                    ↓
+                         API captures & recognizes image
+                                    ↓
+                         Returns result to ESP32
+                                    ↓
+       Open gate (if valid) & display status on screen
+```
+
+## Project Structure
 
 ```
 GateKeeper/
 ├── src/
-│   ├── api/                # FastAPI service
-│   ├── web/                # Flask dashboard (templates & static assets)
-│   ├── hardware/           # Raspberry Pi orchestration script
-│   └── core/               # Detection, OCR, parsing logic
-├── firmware/               # STM32 firmware sources
-├── models/                 # YOLO weights and supporting assets
-├── data/                   # Databases and log output
-├── scripts/                # Utilities (e.g., DB initialization)
-├── docs/                   # Expanded hardware + protocol docs
-├── tests/                  # Sample images and test harnesses
-├── Dockerfile
-└── docker-compose.yml
+│   ├── api/
+│   │   └── main.py              # Starts FastAPI and defines endpoints
+│   └── core/
+│       ├── detector.py          # License plate detection using YOLOv8
+│       ├── ocr_reader.py        # Character recognition with PaddleOCR
+│       └── parser.py            # Processing and normalizing license plates
+├── firmware/
+│   └── GateKeeper/
+│       └── src/
+│           └── main.cpp         # ESP32 code (WiFi, HTTP, servo, OLED)
+├── config/
+│   └── settings.py              # System configuration
+├── models/
+│   └── best.pt                  # YOLOv8 model (download separately)
+├── docker-compose.yml           # Run service with Docker
+├── Dockerfile                   # Build Docker image
+└── requirements.txt             # Python dependencies
 ```
 
-## Getting Started
+## Hardware Requirements
 
-### Prerequisites
+### For the API
 
-- Python 3.9+
-- libopencv bindings (`sudo apt install python3-opencv` on Debian/Ubuntu)
-- (Optional) Docker + Docker Compose
-- Hardware: Raspberry Pi 4/5, STM32F4, USB/UVC camera, LM393 sensor, SG90 servo
+* USB camera or webcam
+* Computer/server running Docker (or Python 3.11+)
+* Optional GPU (CPU works but slower)
 
-### Local Installation
+### For the ESP32
+
+* ESP32 Wroom 32 DevKit v1
+* LM393 obstacle sensor
+* SG90 servo
+* SSD1306 128×64 OLED display (I²C)
+
+## Installation Guide
+
+### Step 1: Prepare Python environment
 
 ```bash
-# clone and enter repo
-git clone <repository-url>
-cd GateKeeper
-
-# create virtual environment (recommended)
+# Create virtual environment
 python -m venv .venv
-source .venv/bin/activate
 
-# install dependencies
+# Activate environment
+source .venv/bin/activate   # Linux/Mac
+# or
+.venv\Scripts\activate      # Windows
+
+# Install dependencies
+pip install --upgrade pip
 pip install -r requirements.txt
-
-# initialize SQLite schema
-python scripts/setup_db.py
 ```
 
-### Run Services
+### Step 2: Download YOLOv8 model
+
+Place the trained `best.pt` file inside the `models/` directory.
+
+### Step 3: Run the API
+
+**Option 1: Run directly**
 
 ```bash
-# launch FastAPI recognition service
 python -m src.api.main
-
-# in another terminal: launch Flask dashboard
-python -m src.web.app
 ```
 
-Services listen on `http://localhost:8000` (API) and `http://localhost:5000` (web UI) by default.@src/api/main.py#13-17@src/web/app.py#27-60
+The server will start at `http://localhost:8000`
+Visit `http://localhost:8000/docs` to view API documentation.
 
-### Docker Deployment
+**Option 2: Run with Docker**
 
 ```bash
-docker-compose up -d
+docker compose up --build
 ```
 
-The compose stack builds a unified image, mounts the shared `data/` and `models/` directories, and exposes the API on port `8000` and dashboard on `5000` for local access.@docker-compose.yml#3-38
+### Step 4: Configure environment variables (optional)
 
-## Configuration
-
-Environment variables override defaults defined in `config/settings.py`.@config/settings.py#11-45
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `API_HOST` / `API_PORT` | `0.0.0.0` / `8000` | FastAPI bind address and port |
-| `WEB_HOST` / `WEB_PORT` | `0.0.0.0` / `5000` | Flask dashboard bind address and port |
-| `WEB_SECRET_KEY` | _unset_ | Session secret (must change for production) |
-| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `admin` / `admin` | Dashboard credentials (change immediately) |
-| `MODEL_PATH` | `models/best.pt` | YOLOv8 weights path |
-| `UART_PORT` / `UART_BAUDRATE` | `/dev/ttyAMA0` / `115200` | STM32 UART link |
-| `CAMERA_ID` / `CAMERA_WIDTH` / `CAMERA_HEIGHT` | `0` / `1280` / `720` | Capture device selection |
-| `DETECTION_CONFIDENCE` | `0.3` | YOLO confidence threshold |
-
-## Usage
-
-### Web Dashboard
-
-1. Open `http://localhost:5000`.
-2. Authenticate with the configured admin credentials.
-3. Manage plates (add/remove) and review recent movement logs from the dashboard views.@src/web/app.py#89-247
-
-### Recognition API
-
-- **Trigger camera capture** (requires a camera attached to the host running the API):
-  ```bash
-  curl http://localhost:8000/lpr
-  ```
-  Returns `{"plate": "<text>", "status": true}` when a plate is recognized.@src/api/main.py#62-110
-
-- **Upload an image** (legacy endpoint retained for testing):
-  ```bash
-  curl -X POST http://localhost:8000/lpr/upload \
-    -H "Content-Type: multipart/form-data" \
-    -F "file=@/path/to/image.jpg"
-  ```
-  Response mirrors the camera endpoint on success.@src/api/main.py#112-138
-
-### Edge Automation (Raspberry Pi)
-
-Run the orchestration script on the Pi to bridge STM32 events, recognition, and barrier control:
+Create a `.env` file or export variables:
 
 ```bash
-python -m src.hardware.smart_car_park
+# API configuration
+export API_HOST=0.0.0.0
+export API_PORT=8000
+
+# Camera configuration
+export CAMERA_ID=0           # 0 for default camera
+export CAMERA_WIDTH=1280
+export CAMERA_HEIGHT=720
+
+# Detection confidence
+export DETECTION_CONFIDENCE=0.3  # 0.0 - 1.0
 ```
 
-The script establishes UART to the STM32, maintains a live camera feed, passes detections through YOLO/PaddleOCR, and writes decisions back to the controller.@src/hardware/smart_car_park.py#93-364
+### Step 5: Upload code to ESP32
 
-### Data & Logs
+1. Install [PlatformIO](https://platformio.org/)
+2. Open `firmware/GateKeeper` in VS Code
+3. Edit WiFi and API info in `src/main.cpp`:
 
-- SQLite database: `data/databases/car_park.db`
-- Web logs: `data/logs/web_app.log`
-- Edge runtime logs: timestamped files in `data/logs/`
+   ```cpp
+   const char* WIFI_SSID = "TenWiFi";
+   const char* WIFI_PASSWORD = "MatKhauWiFi";
+   const char* WEBHOOK_URL = "http://192.168.1.100:8000/lpr";
+   ```
+4. Build and upload to ESP32
 
-## Hardware Quick Reference
+## ESP32 Wiring Diagram
 
-| Component | Notes |
-| --- | --- |
-| STM32F4 MCU | Handles sensors, servo PWM, OLED feedback |
-| Raspberry Pi 4/5 | Runs Python orchestration and services |
-| LM393 IR sensor | Detects vehicle presence |
-| SG90 servo | Drives entry barrier |
-| SSD1306 OLED | Displays status messages |
-| UVC-compatible camera | Captures license plates |
+```
+ESP32          |  LM393 Sensor
+---------------|---------------
+GPIO 4         →  DO (Digital Out)
+GND            →  GND
+3.3V           →  VCC
 
-See `docs/README.md` for wiring diagrams, UART protocol details, and deployment checklists.
+ESP32          |  Servo SG90
+---------------|-----------------------------
+GPIO 5         →  Signal
+GND            →  GND
+3.3V           →  VCC
 
-## Testing
-
-```bash
-python -m pytest tests/
+ESP32          |  OLED SSD1306
+---------------|---------------
+GPIO 21 (SDA)  →  SDA
+GPIO 22 (SCL)  →  SCL
+GND            →  GND
+3.3V           →  VCC
 ```
 
-Sample images in `tests/test_images/` help validate the detector/OCR pipeline.
+⚠️ **Important notes**:
 
-## Troubleshooting
+* Do NOT power the servo directly from the ESP32 (this may damage the board)
+* Use a separate 5V power supply for the servo
+* Connect grounds (GND) between ESP32, servo, and external power
 
-- No camera feed? Confirm `/dev/video*` permissions and the configured `CAMERA_ID`.
-- UART silent? Verify `enable_uart=1` on the Pi and wiring to STM32.
-- Recognition failures? Enable `DEBUG_IMAGES=true` before running the hardware script to inspect crops.@src/core/detector.py#67-74
+## API Endpoints
 
-## Security Checklist
+### `GET /lpr`
 
-- Rotate the default admin credentials and Flask secret key.
-- Place services behind HTTPS and restrict network exposure.
-- Harden the Pi/STM32 deployment (physical security, VLAN isolation, limited user accounts).
+Captures an image from the camera, recognizes the license plate, and returns the result.
 
-## Contributing
+**Response:**
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit changes with context-rich messages
-4. Submit a pull request with test results
+```json
+{
+  "status": true,
+  "plate": "29A12345"
+}
+```
 
-## License & Acknowledgements
+## Operation Flow
 
-Educational use only—obtain appropriate approvals before deploying in production. Built atop Ultralytics YOLOv8, PaddleOCR, Flask, FastAPI, and community tooling.
+1. **Vehicle detection**: LM393 sensor detects an approaching vehicle
+2. **Request sent**: ESP32 shows “Checking…” and calls the API
+3. **Image processing**:
+
+   * API captures an image
+   * YOLOv8 detects the plate region
+   * PaddleOCR reads characters
+   * Cleanup and normalization of the results
+4. **Result returned**: API sends the response to ESP32
+5. **Gate control**:
+
+   * If valid: Servo opens 90°, display shows “ACCEPT” and the plate
+   * If invalid: Display shows “DENY”
+
