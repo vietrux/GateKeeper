@@ -27,6 +27,7 @@ GateKeeper hoạt động như một hệ thống kiểm soát ra vào tự đ�
 - Hỗ trợ nhiều loại camera
 
 ## Cách hoạt động
+<img width="1920" height="1080" alt="fig" src="https://github.com/user-attachments/assets/06cbf3a2-3dd0-44ac-9ad3-254a15463d2e" />
 
 ```
 Xe đến → Cảm biến phát hiện → ESP32 gọi API
